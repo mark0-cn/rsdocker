@@ -31,7 +31,8 @@ fn main() -> () {
         println!("You need root privileges to run this program.");
         return;
     }
-
+    println!("args: {:?}", args);
+    
     init_rsdocker_dirs().expect("Unable to create requisite directories");
     match args[1].as_str() {
         "run" => {
