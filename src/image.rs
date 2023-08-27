@@ -19,9 +19,6 @@ fn parse_images_metdata(idb: &mut ImagesDB) -> () {
     let images_db_path = get_rsdocker_images_path();
     let images_db_file_path = format!("{}/images.json", images_db_path);
 
-    if !fs::metadata(&images_db_path).is_ok() {
-        fs::create_dir_all(&images_db_path).expect("Unable to create dir");
-    }
     if !fs::metadata(&images_db_file_path).is_ok() {
         File::create(&images_db_file_path).expect("Unable to create file");
         fs::write(&images_db_file_path, "{}").expect("Unable to write file");
@@ -59,16 +56,25 @@ fn image_exists_by_hash(image_sha_hex: &String) -> (String, String) {
     return ("".to_string(), "".to_string());
 }
 
+fn marshal_image_metadata(idb: &ImagesDB) -> () {
+    let file_bytes = serde_json::to_string(idb).expect("Unable to marshal json");
+    let images_db_path = get_rsdocker_images_path() + "/images.json";
+
+    fs::write(&images_db_path, file_bytes).expect("Unable to write file");
+}
+
 fn store_image_metadata(image: &str, tag: &str, image_sha_hex: &String) -> () {
     let mut idb = &mut HashMap::new();
-    let mut ientry = &mut HashMap::new();
+    let ientry = &mut HashMap::new();
 
     parse_images_metdata(&mut idb);
     if idb.contains_key(image) {
-        ientry = idb.get_mut(image).unwrap();
+        *ientry = idb.get_mut(image).unwrap().clone();
     }
-    // ientry.insert(tag.to_string(), *image_sha_hex);
-    // idb.insert(image.to_string(), ientry.to_owned());
+    ientry.insert(tag.to_string(), image_sha_hex.to_string());
+    idb.insert(image.to_string(), ientry.to_owned());
+
+    marshal_image_metadata(idb);
 }
 
 pub fn down_load_image_if_required(src: &str) -> String {
@@ -94,10 +100,15 @@ pub fn down_load_image_if_required(src: &str) -> String {
         if alt_img_name != "" && alt_img_tag != "" {
             println!("The image you requested {}:{} is the same as {}:{}", img_name, tag_name, alt_img_name, alt_img_tag);
             store_image_metadata(img_name, tag_name, &image_sha_hex);
-            
+            return image_sha_hex;
         }
     }else{
         println!("Image already exists. Not downloading.");
+        // down_load_image(img, image_sha_hex, src);
+        // untar_file(image_sha_hex);
+        // process_layer_tarballs(image_sha_hex, manifest....);
+        // store_image_metadata(img_name, tag_name, &image_sha_hex);
+        // delete_temp_image_files(image_sha_hex);
         return image_sha_hex
     }
     todo!("todo!!!");
