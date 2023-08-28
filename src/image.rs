@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fs::{self, File};
 use serde_json;
-use crate::utils::get_rsdocker_images_path;
+use crate::utils::*;
 
 type ImageEntries = HashMap<String, String>;
 type ImagesDB = HashMap<String, ImageEntries>;
@@ -77,14 +77,20 @@ fn store_image_metadata(image: &str, tag: &str, image_sha_hex: &String) -> () {
     marshal_image_metadata(idb);
 }
 
+fn down_load_image(img: &str, image_sha_hex: &String, src: &str) -> () {
+    let mut path = get_rsdocker_tmp_path() + "/" + &image_sha_hex;
+    path += "/package.tar";
+    todo!("todo!!!");
+}
+
 pub fn down_load_image_if_required(src: &str) -> String {
     let (img_name, tag_name) = get_image_name_and_tag(src);
     log::info!("image_name = {}, image_tag = {}", img_name, tag_name);
 
-    let (down_load_required, image_sha_hex) = image_exist_by_tag(img_name, tag_name);
-    log::info!("down_load_required = {}, image_sha_hex = {}", down_load_required, image_sha_hex);
+    let (image_is_exist, image_sha_hex) = image_exist_by_tag(img_name, tag_name);
+    log::info!("image_is_exist = {}, image_sha_hex = {}", image_is_exist, image_sha_hex);
 
-    if !down_load_required {
+    if !image_is_exist {
         log::info!("Downloading metadata for {}:{}, please wait...", img_name, tag_name);
         // img, err := crane.Pull(strings.Join([]string{imgName, tagName}, ":"))
 		// if err != nil {
@@ -102,13 +108,17 @@ pub fn down_load_image_if_required(src: &str) -> String {
             store_image_metadata(img_name, tag_name, &image_sha_hex);
             return image_sha_hex;
         }
+        else{
+            log::info!("Image doesn't exist. Downloading...");
+            down_load_image("", &image_sha_hex, src);
+            // untar_file(image_sha_hex);
+            // process_layer_tarballs(image_sha_hex, manifest....);
+            // store_image_metadata(img_name, tag_name, &image_sha_hex);
+            // delete_temp_image_files(image_sha_hex);
+            return image_sha_hex
+        }
     }else{
-        log::info!("Image doesn't exist. Downloading...");
-        // down_load_image(img, image_sha_hex, src);
-        // untar_file(image_sha_hex);
-        // process_layer_tarballs(image_sha_hex, manifest....);
-        // store_image_metadata(img_name, tag_name, &image_sha_hex);
-        // delete_temp_image_files(image_sha_hex);
+        log::info!("Image already exists. Not downloading.");
         return image_sha_hex
     }
     todo!("todo!!!");
