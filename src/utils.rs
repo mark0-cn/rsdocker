@@ -20,3 +20,7 @@ pub fn init_rsdocker_dirs() -> Result<(), std::io::Error> {
 pub fn get_rsdocker_images_path() -> String {
     GOCKER_IMAGES_PATH.to_string()
 }
+
+pub fn get_rsdocker_tmp_path() -> String {
+    GOCKER_TEMP_PATH.to_string()
+}
