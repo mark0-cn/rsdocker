@@ -16,7 +16,7 @@ fn create_container_id() -> String {
 
 pub fn init_container(src: &str) {
     let container_id = create_container_id();
-    println!("container_id = {}", container_id);
+    log::info!("container_id = {}", container_id);
 
     let image_sha_hex = down_load_image_if_required(src);
 }

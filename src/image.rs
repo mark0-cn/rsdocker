@@ -79,13 +79,13 @@ fn store_image_metadata(image: &str, tag: &str, image_sha_hex: &String) -> () {
 
 pub fn down_load_image_if_required(src: &str) -> String {
     let (img_name, tag_name) = get_image_name_and_tag(src);
-    println!("image_name = {}, image_tag = {}", img_name, tag_name);
+    log::info!("image_name = {}, image_tag = {}", img_name, tag_name);
 
     let (down_load_required, image_sha_hex) = image_exist_by_tag(img_name, tag_name);
-    println!("down_load_required = {}, image_sha_hex = {}", down_load_required, image_sha_hex);
+    log::info!("down_load_required = {}, image_sha_hex = {}", down_load_required, image_sha_hex);
 
     if !down_load_required {
-        println!("Downloading metadata for {}:{}, please wait...", img_name, tag_name);
+        log::info!("Downloading metadata for {}:{}, please wait...", img_name, tag_name);
         // img, err := crane.Pull(strings.Join([]string{imgName, tagName}, ":"))
 		// if err != nil {
 		// 	log.Fatal(err)
@@ -94,16 +94,16 @@ pub fn down_load_image_if_required(src: &str) -> String {
 		// manifest, _ := img.Manifest()
 		// imageShaHex = manifest.Config.Digest.Hex[:12]
 		// log.Printf("imageHash: %v\n", imageShaHex)
-        println!("image_hash = {}", image_sha_hex);
-        println!("Checking if image exists under another name...");
+        log::info!("image_hash = {}", image_sha_hex);
+        log::info!("Checking if image exists under another name...");
         let (alt_img_name, alt_img_tag) = image_exists_by_hash(&image_sha_hex);
         if alt_img_name != "" && alt_img_tag != "" {
-            println!("The image you requested {}:{} is the same as {}:{}", img_name, tag_name, alt_img_name, alt_img_tag);
+            log::info!("The image you requested {}:{} is the same as {}:{}", img_name, tag_name, alt_img_name, alt_img_tag);
             store_image_metadata(img_name, tag_name, &image_sha_hex);
             return image_sha_hex;
         }
     }else{
-        println!("Image already exists. Not downloading.");
+        log::info!("Image {}:{} already exists. Not downloading.", img_name, tag_name);
         // down_load_image(img, image_sha_hex, src);
         // untar_file(image_sha_hex);
         // process_layer_tarballs(image_sha_hex, manifest....);
