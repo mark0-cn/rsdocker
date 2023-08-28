@@ -103,7 +103,7 @@ pub fn down_load_image_if_required(src: &str) -> String {
             return image_sha_hex;
         }
     }else{
-        log::info!("Image {}:{} already exists. Not downloading.", img_name, tag_name);
+        log::info!("Image doesn't exist. Downloading...");
         // down_load_image(img, image_sha_hex, src);
         // untar_file(image_sha_hex);
         // process_layer_tarballs(image_sha_hex, manifest....);
