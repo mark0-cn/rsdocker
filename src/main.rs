@@ -1,5 +1,6 @@
 mod image;
 mod run;
+mod tarfile;
 mod utils;
 
 use std::env;
