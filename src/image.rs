@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs::{self, File};
 use serde_json;
 use crate::utils::*;
+use crate::tarfile::*;
 
 type ImageEntries = HashMap<String, String>;
 type ImagesDB = HashMap<String, ImageEntries>;
@@ -80,6 +81,30 @@ fn store_image_metadata(image: &str, tag: &str, image_sha_hex: &String) -> () {
 fn down_load_image(img: &str, image_sha_hex: &String, src: &str) -> () {
     let mut path = get_rsdocker_tmp_path() + "/" + &image_sha_hex;
     path += "/package.tar";
+    // TODO:
+    // if err := crane.SaveLegacy(img, src, path); err != nil {
+	// 	log.Fatalf("saving tarball %s: %v", path, err)
+	// }
+    log::info!("Successfully downloaded {}", src);
+}
+
+fn untar_file(image_sha_hex: &String) {
+    let path_dir = get_rsdocker_tmp_path() + "/" + image_sha_hex;
+    let path_tar = path_dir.as_str().to_owned() + "package.tar";
+
+    log::info!("untar_file path_tar = {}, dest_path = {}, ", path_tar, path_dir);
+    
+    match untar(&path_tar, &path_dir) {
+        Ok(_) => {
+            log::info!("Successfully untar {}", path_tar);
+        },
+        Err(e) => {
+            log::error!("Error untaring file: {}", e);
+        }
+    }
+}
+
+fn process_layer_tarballs(image_sha_hex: &String, full_image_hex: &String) {
     todo!("todo!!!");
 }
 
@@ -111,8 +136,8 @@ pub fn down_load_image_if_required(src: &str) -> String {
         else{
             log::info!("Image doesn't exist. Downloading...");
             down_load_image("", &image_sha_hex, src);
-            // untar_file(image_sha_hex);
-            // process_layer_tarballs(image_sha_hex, manifest....);
+            untar_file(&image_sha_hex);
+            // process_layer_tarballs(&image_sha_hex, manifest.Config.Digest.Hex);
             // store_image_metadata(img_name, tag_name, &image_sha_hex);
             // delete_temp_image_files(image_sha_hex);
             return image_sha_hex
