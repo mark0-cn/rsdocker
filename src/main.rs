@@ -3,7 +3,7 @@ mod run;
 mod tarfile;
 mod utils;
 
-use std::env;
+use std::{env, process};
 use nix::unistd::geteuid;
 use run::init_container;
 use utils::init_rsdocker_dirs;
@@ -31,12 +31,12 @@ fn main() -> () {
     if args.len() < 2 || !options.contains(&args[1].as_str()) {
         log::error!("Args length is less than 2 or invalid option");
         usage();
-        return;
+        process::exit(1);
     }
 
     if geteuid().is_root() == false {
         println!("You need root privileges to run this program.");
-        return;
+        process::exit(1);
     }
     log::info!("args: {:?}", args);
     
