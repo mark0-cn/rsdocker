@@ -59,7 +59,7 @@ fn image_exists_by_hash(image_sha_hex: &String) -> (String, String) {
 
 fn marshal_image_metadata(idb: &ImagesDB) -> () {
     let file_bytes = serde_json::to_string(idb).expect("Unable to marshal json");
-    let images_db_path = get_rsdocker_images_path() + "/images.json";
+    let images_db_path = get_rsdocker_images_path() + "images.json";
 
     fs::write(&images_db_path, file_bytes).expect("Unable to write file");
 }
@@ -79,7 +79,7 @@ fn store_image_metadata(image: &str, tag: &str, image_sha_hex: &String) -> () {
 }
 
 fn down_load_image(img: &str, image_sha_hex: &String, src: &str) -> () {
-    let mut path = get_rsdocker_tmp_path() + "/" + &image_sha_hex;
+    let mut path = get_rsdocker_tmp_path() + &image_sha_hex;
     path += "/package.tar";
     // TODO:
     // if err := crane.SaveLegacy(img, src, path); err != nil {
@@ -89,7 +89,7 @@ fn down_load_image(img: &str, image_sha_hex: &String, src: &str) -> () {
 }
 
 fn untar_file(image_sha_hex: &String) {
-    let path_dir = get_rsdocker_tmp_path() + "/" + image_sha_hex;
+    let path_dir = get_rsdocker_tmp_path() + image_sha_hex;
     let path_tar = path_dir.as_str().to_owned() + "package.tar";
 
     log::info!("untar_file path_tar = {}, dest_path = {}, ", path_tar, path_dir);
@@ -106,6 +106,12 @@ fn untar_file(image_sha_hex: &String) {
 
 fn process_layer_tarballs(image_sha_hex: &String, full_image_hex: &String) {
     todo!("todo!!!");
+}
+
+fn delete_temp_image_files(image_sha_hex: &String) {
+    let tmp_path = get_rsdocker_tmp_path() + image_sha_hex;
+    // TODO:
+    // doOrDieWithMsg(os.RemoveAll(tmpPath), "Unable to remove temporary image files")
 }
 
 pub fn down_load_image_if_required(src: &str) -> String {
@@ -138,8 +144,8 @@ pub fn down_load_image_if_required(src: &str) -> String {
             down_load_image("", &image_sha_hex, src);
             untar_file(&image_sha_hex);
             // process_layer_tarballs(&image_sha_hex, manifest.Config.Digest.Hex);
-            // store_image_metadata(img_name, tag_name, &image_sha_hex);
-            // delete_temp_image_files(image_sha_hex);
+            store_image_metadata(img_name, tag_name, &image_sha_hex);
+            delete_temp_image_files(&image_sha_hex);
             return image_sha_hex
         }
     }else{
