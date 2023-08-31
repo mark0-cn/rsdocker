@@ -105,13 +105,13 @@ fn untar_file(image_sha_hex: &String) {
 }
 
 fn process_layer_tarballs(image_sha_hex: &String, full_image_hex: &String) {
+    // TODO:
     todo!("todo!!!");
 }
 
 fn delete_temp_image_files(image_sha_hex: &String) {
     let tmp_path = get_rsdocker_tmp_path() + image_sha_hex;
-    // TODO:
-    // doOrDieWithMsg(os.RemoveAll(tmpPath), "Unable to remove temporary image files")
+    do_or_die_with_msg(fs::remove_dir_all(tmp_path).err(), "Unable to remove temporary image files");
 }
 
 pub fn down_load_image_if_required(src: &str) -> String {
@@ -143,6 +143,7 @@ pub fn down_load_image_if_required(src: &str) -> String {
             log::info!("Image doesn't exist. Downloading...");
             down_load_image("", &image_sha_hex, src);
             untar_file(&image_sha_hex);
+            // TODO:
             // process_layer_tarballs(&image_sha_hex, manifest.Config.Digest.Hex);
             store_image_metadata(img_name, tag_name, &image_sha_hex);
             delete_temp_image_files(&image_sha_hex);
@@ -152,6 +153,4 @@ pub fn down_load_image_if_required(src: &str) -> String {
         log::info!("Image already exists. Not downloading.");
         return image_sha_hex
     }
-    todo!("todo!!!");
-    image_sha_hex
 }
