@@ -1,11 +1,39 @@
 use std::collections::HashMap;
 use std::fs::{self, File};
 use serde_json;
+use serde::{Serialize, Deserialize};
 use crate::utils::*;
 use crate::tarfile::*;
 
 type ImageEntries = HashMap<String, String>;
 type ImagesDB = HashMap<String, ImageEntries>;
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct Mainfest {
+    pub config: String,
+    pub repo_tags: Vec<String>,
+    pub layers: Vec<String>
+}
+
+impl Mainfest {
+    pub fn new() -> Mainfest {
+        Mainfest {
+            ..Default::default()
+        }
+    }
+
+    pub fn new_vec() -> Vec<Mainfest> {
+        vec![Mainfest::new()]
+    }
+}
+
+pub fn get_base_path_for_image(image_sha_hex: &String) -> String {
+    return get_rsdocker_images_path() + image_sha_hex;
+}
+
+pub fn get_manifest_path_for_image(image_sha_hex: &String) -> String {
+    return get_base_path_for_image(image_sha_hex) + "/manifest.json";
+}
 
 fn get_image_name_and_tag(src: &str) -> (&str, &str) {
     let mut image_name = "";
