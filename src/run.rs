@@ -1,6 +1,12 @@
+use std::process;
+use nix::mount::mount;
 use rand::Rng;
-use crate::image::down_load_image_if_required;
+use crate::image::*;
 use crate::utils::*;
+
+fn get_container_fs_home(container_id: &String) -> String {
+    return get_rsdocker_containers_path() + container_id + "/fs";
+}
 
 fn create_container_id() -> String {
     let mut rng = rand::thread_rng();
@@ -25,6 +31,31 @@ fn create_container_directories(container_id: &String) {
 }
 
 fn mount_overlay_file_system(container_id: &String, image_sha_hex: &String) {
+    let mut src_layers: Vec<String> = Vec::new();
+    let path_manifest = get_manifest_path_for_image(image_sha_hex);
+    let mut mani = Mainfest::new_vec();
+
+    parse_manifest(path_manifest,&mut mani);
+    if mani.len() == 0 || mani[0].layers.len() == 0 {
+        log::error!("Could not find any layers.");
+        process::exit(-1);
+    }else if mani.len() > 1{
+        log::error!("I don't know how to handle more than one manifest.");
+        process::exit(-1);
+    }
+
+    let image_base_path = get_base_path_for_image(&image_sha_hex);
+    for layer in &mani[0].layers {
+        src_layers.push(image_base_path.clone() + &layer.chars().take(12).collect::<String>() + "/fs");
+    }
+
+    let const_fs_home = get_container_fs_home(&container_id);
+    let mnt_options = format!(
+        "lowerdir={}:upperdir={}/upperdir,workdir={}/workdir",
+        src_layers.join(":"),
+        const_fs_home,
+        const_fs_home
+    );
     // TODO:
     todo!("mount_overlay_file_system");
 }
