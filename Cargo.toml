@@ -10,6 +10,6 @@ nix = "*"
 rand = "*"
 log = "*"
 serde_json = "*"
-serde = "*"
+serde = {version = "*", features = ["derive"]}
 env_logger = "*"
 tar = "*"
