@@ -1,6 +1,7 @@
-use std::process;
-use nix::mount::mount;
+use std::ffi::CString;
+use nix::mount::{mount, MsFlags};
 use rand::Rng;
+use crane::image::*;
 use crate::image::*;
 use crate::utils::*;
 
@@ -30,34 +31,35 @@ fn create_container_directories(container_id: &String) {
     }
 }
 
+
 fn mount_overlay_file_system(container_id: &String, image_sha_hex: &String) {
-    let mut src_layers: Vec<String> = Vec::new();
-    let path_manifest = get_manifest_path_for_image(image_sha_hex);
-    let mut mani = Mainfest::new_vec();
+    let path_manifest = get_rsdocker_tmp_path() + "/manifest.json";
+    let mut mani = Manifest::new();
 
     parse_manifest(path_manifest,&mut mani);
-    if mani.len() == 0 || mani[0].layers.len() == 0 {
-        log::error!("Could not find any layers.");
-        process::exit(-1);
-    }else if mani.len() > 1{
-        log::error!("I don't know how to handle more than one manifest.");
-        process::exit(-1);
-    }
 
     let image_base_path = get_base_path_for_image(&image_sha_hex);
-    for layer in &mani[0].layers {
-        src_layers.push(image_base_path.clone() + &layer.chars().take(12).collect::<String>() + "/fs");
-    }
+    // for layer in &mani[0].layers {
+    let src_layers = image_base_path.clone() + mani.etag.unwrap().as_str();
+    // }
 
     let const_fs_home = get_container_fs_home(&container_id);
     let mnt_options = format!(
         "lowerdir={}:upperdir={}/upperdir,workdir={}/workdir",
-        src_layers.join(":"),
+        src_layers,
         const_fs_home,
         const_fs_home
     );
-    // TODO:
-    todo!("mount_overlay_file_system");
+
+    let fstype = Some(CString::new("overlay").expect("CString::new failed"));
+    let flags = MsFlags::MS_NOSUID | MsFlags::MS_NODEV | MsFlags::MS_NOEXEC;
+    let data = Some(CString::new(mnt_options).expect("CString::new failed"));
+    let source = None;
+    let target = CString::new(const_fs_home + "/mnt").expect("CString::new failed");
+    if let Err(err) = mount(source.as_ref(), &target, fstype.as_ref(), flags, data.as_ref()) {
+        eprintln!("Mount failed: {}", err);
+        return;
+    }
 }
 
 pub fn init_container(src: &str) {

@@ -1,7 +1,7 @@
 use std::fs::{self, File};
 use std::io::prelude::*;
 use std::error::Error;
-use crate::image::*;
+use crane::image::Manifest;
 
 static RSDOCKER_HOME_PATH: &str = "/var/lib/rsdocker/";
 static RSDOCKER_TEMP_PATH: &str = "/var/lib/rsdocker/tmp/";
@@ -52,11 +52,11 @@ pub fn get_rsdocker_containers_path() -> String {
     RSDOCKER_CONTAINERS_PATH.to_string()
 }
 
-pub fn parse_manifest(manifest_path: String, mani: &mut Vec<Mainfest>) {
+pub fn parse_manifest(manifest_path: String, mani: &mut Manifest) {
     let mut file = File::open(manifest_path).unwrap();
     let mut content = String::new();
 
     file.read_to_string(&mut content);
-    let serde_mani: Vec<Mainfest> = serde_json::from_str(content.as_str()).expect("Unable prase json");
+    let serde_mani: Manifest = serde_json::from_str(content.as_str()).expect("Unable prase json");
     *mani = serde_mani;
 }

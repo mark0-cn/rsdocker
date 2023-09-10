@@ -25,6 +25,11 @@ fn main() -> () {
     if env::var("RUST_LOG").is_err() {
         env::set_var("RUST_LOG", "info");
     }
+    if env::var("https_proxy").is_err() {
+        env::set_var("https_proxy", "http://127.0.0.1:7890");
+        env::set_var("http_proxy", "http://127.0.0.1:7890");
+        env::set_var("all_proxy", "socks5://127.0.0.1:7890");
+    }
     env_logger::init();
 
     // 检查参数数量
@@ -43,7 +48,7 @@ fn main() -> () {
     init_rsdocker_dirs().expect("Unable to create requisite directories");
     match args[1].as_str() {
         "run" => {
-            init_container("alpine");
+            init_container("centos");
         },
         "exec" => {
             todo!("exec");

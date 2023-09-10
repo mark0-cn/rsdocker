@@ -1,31 +1,11 @@
 use std::collections::HashMap;
 use std::fs::{self, File};
 use serde_json;
-use serde::{Serialize, Deserialize};
+use crane::image::*;
 use crate::utils::*;
-use crate::tarfile::*;
 
 type ImageEntries = HashMap<String, String>;
 type ImagesDB = HashMap<String, ImageEntries>;
-
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct Mainfest {
-    pub config: String,
-    pub repo_tags: Vec<String>,
-    pub layers: Vec<String>
-}
-
-impl Mainfest {
-    pub fn new() -> Mainfest {
-        Mainfest {
-            ..Default::default()
-        }
-    }
-
-    pub fn new_vec() -> Vec<Mainfest> {
-        vec![Mainfest::new()]
-    }
-}
 
 pub fn get_base_path_for_image(image_sha_hex: &String) -> String {
     return get_rsdocker_images_path() + image_sha_hex;
@@ -106,35 +86,27 @@ fn store_image_metadata(image: &str, tag: &str, image_sha_hex: &String) -> () {
     marshal_image_metadata(idb);
 }
 
-fn down_load_image(img: &str, image_sha_hex: &String, src: &str) -> () {
-    let mut path = get_rsdocker_tmp_path() + &image_sha_hex;
-    path += "/package.tar";
+fn process_layer_tarballs(manifest: &crane::image::Manifest, image_sha_hex: &String, full_image_hex: &String) {
+    let tmp_path_dir = get_rsdocker_tmp_path() + image_sha_hex;
+    let path_manifest = get_rsdocker_tmp_path() + "/manifest.json";
+    let path_config = tmp_path_dir.clone() + "/" + full_image_hex + ".json";
+
+    let mut mani = Manifest::new();
+    parse_manifest(path_manifest, &mut mani);
+
+    // let images_dir = get_rsdocker_images_path() + image_sha_hex;
+    // for layer in manifest.layers.iter() {
+    //     // let image_layer_dir = images_dir + "/" + layer[:12] +"/fs";
+    //     let layer_hash = layer.digest.trim_start_matches("sha256:").chars().take(64).collect::<String>();
+    //     let image_layer_dir = images_dir.clone() + "/" + layer_hash.chars().take(16).collect::<String>().as_str() + "fs";
+
+    //     log::info!("Uncompressing layer to: {}", image_layer_dir);
+    //     if !fs::metadata(&image_layer_dir).is_ok() {
+    //         fs::create_dir(&image_layer_dir).unwrap();
+    //     }
+
+    // }
     // TODO:
-    // if err := crane.SaveLegacy(img, src, path); err != nil {
-	// 	log.Fatalf("saving tarball %s: %v", path, err)
-	// }
-    log::info!("Successfully downloaded {}", src);
-}
-
-fn untar_file(image_sha_hex: &String) {
-    let path_dir = get_rsdocker_tmp_path() + image_sha_hex;
-    let path_tar = path_dir.as_str().to_owned() + "package.tar";
-
-    log::info!("untar_file path_tar = {}, dest_path = {}, ", path_tar, path_dir);
-    
-    match untar(&path_tar, &path_dir) {
-        Ok(_) => {
-            log::info!("Successfully untar {}", path_tar);
-        },
-        Err(e) => {
-            log::error!("Error untaring file: {}", e);
-        }
-    }
-}
-
-fn process_layer_tarballs(image_sha_hex: &String, full_image_hex: &String) {
-    // TODO:
-    todo!("todo!!!");
 }
 
 fn delete_temp_image_files(image_sha_hex: &String) {
@@ -142,43 +114,50 @@ fn delete_temp_image_files(image_sha_hex: &String) {
     do_or_die_with_msg(fs::remove_dir_all(tmp_path).err(), "Unable to remove temporary image files");
 }
 
+fn store_manifest_metadata(manifest: &Manifest) {
+    let manifest_path = get_rsdocker_tmp_path() + "manifest.json";
+    let metadata = serde_json::to_string(manifest).expect("Unable to manifest json");
+    fs::write(&manifest_path, metadata).expect("Unable to write file");
+}
+
 pub fn down_load_image_if_required(src: &str) -> String {
     let (img_name, tag_name) = get_image_name_and_tag(src);
     log::info!("image_name = {}, image_tag = {}", img_name, tag_name);
 
-    let (image_is_exist, image_sha_hex) = image_exist_by_tag(img_name, tag_name);
+    let (image_is_exist, mut image_sha_hex) = image_exist_by_tag(img_name, tag_name);
     log::info!("image_is_exist = {}, image_sha_hex = {}", image_is_exist, image_sha_hex);
 
     if !image_is_exist {
         log::info!("Downloading metadata for {}:{}, please wait...", img_name, tag_name);
-        // img, err := crane.Pull(strings.Join([]string{imgName, tagName}, ":"))
-		// if err != nil {
-		// 	log.Fatal(err)
-		// }
-
-		// manifest, _ := img.Manifest()
-		// imageShaHex = manifest.Config.Digest.Hex[:12]
-		// log.Printf("imageHash: %v\n", imageShaHex)
-        log::info!("image_hash = {}", image_sha_hex);
+        let image: Image = Image {name: img_name.to_string(), reference: tag_name.to_string(), ..Default::default() };
+        let  auth = authenticate(&image).expect("Failed to authenticate.");
+        let manifest = image.get_manifest(Some(&auth.access_token)).expect("Failed to retrieve manifest.");
+        let etag = manifest.etag.as_ref();
+        image_sha_hex = etag.unwrap().trim_start_matches("\"sha256:").chars().take(64).collect();
+        log::info!("image_sha_hex: {:#?}", image_sha_hex);
         log::info!("Checking if image exists under another name...");
         let (alt_img_name, alt_img_tag) = image_exists_by_hash(&image_sha_hex);
+
         if alt_img_name != "" && alt_img_tag != "" {
             log::info!("The image you requested {}:{} is the same as {}:{}", img_name, tag_name, alt_img_name, alt_img_tag);
             store_image_metadata(img_name, tag_name, &image_sha_hex);
-            return image_sha_hex;
+            ()
         }
         else{
             log::info!("Image doesn't exist. Downloading...");
-            down_load_image("", &image_sha_hex, src);
-            untar_file(&image_sha_hex);
+            let down_path = get_rsdocker_tmp_path() + &image_sha_hex;
+            image.download_layers(&down_path, Some(&auth.access_token), &manifest).unwrap();
+            log::info!("Successfully downloaded {}", down_path);
             // TODO:
-            // process_layer_tarballs(&image_sha_hex, manifest.Config.Digest.Hex);
+            store_manifest_metadata(&manifest);
+            // process_layer_tarballs(&manifest, &image_sha_hex, &image_sha_hex);
             store_image_metadata(img_name, tag_name, &image_sha_hex);
-            delete_temp_image_files(&image_sha_hex);
-            return image_sha_hex
+            // delete_temp_image_files(&image_sha_hex);
+            ()
         }
     }else{
         log::info!("Image already exists. Not downloading.");
-        return image_sha_hex
+        ()
     }
+    image_sha_hex
 }
