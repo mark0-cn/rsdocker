@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::io::Cursor;
 use std::fs::{create_dir_all, File};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use reqwest::header::{CONTENT_TYPE, ETAG};
 
 #[derive(Debug, PartialEq, PartialOrd)]
@@ -61,7 +61,7 @@ impl Image {
             panic!("No Content-Type header found.");
         }
 
-        manifest.etag = String::from(headers.get(ETAG).unwrap().to_str().unwrap()).trim_start_matches("sha256:").chars().take(64).collect::<String>();
+        manifest.etag = Some(String::from(headers.get(ETAG).unwrap().to_str().unwrap()).trim_start_matches("\"sha256:").chars().take(64).collect::<String>());
         Ok(manifest)
     }
 
@@ -110,17 +110,23 @@ impl Image {
 pub struct AuthResponse {
     pub access_token: String,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FsLayer {
-    #[serde(rename(deserialize = "blobSum"))]
+    #[serde(rename(deserialize = "blobSum", serialize = "blobSum"))]
     pub digest: String,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize, Default)]
 pub struct Manifest {
-    #[serde(rename(deserialize = "fsLayers"))]
+    #[serde(rename(deserialize = "fsLayers", serialize = "fsLayers"))]
     pub layers: Vec<FsLayer>,
-    #[serde(skip)]
-    pub etag: String
+    // #[serde(skip)]
+    pub etag: Option<String>
+}
+
+impl Manifest {
+    pub fn new() -> Self {
+        Manifest { ..Default::default() }
+    }
 }
 
 pub fn authenticate(image: &Image) -> Result<AuthResponse, reqwest::Error> {
